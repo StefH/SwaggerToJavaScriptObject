@@ -1,0 +1,190 @@
+﻿@page "/"
+@inject SwaggerAnalyzerService AnalyzerService
+@inject JavaScriptObjectGeneratorService GeneratorService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Swagger to JavaScript Object</PageTitle>
+
+<div class="container-fluid px-0">
+    <h1 class="mb-3">Swagger to JavaScript Object</h1>
+    <p class="text-muted mb-4">
+        Paste your Swagger / OpenAPI JSON below, click <strong>Analyze</strong> to extract type definitions,
+        select the types you need, then click <strong>Generate</strong> to produce JavaScript <code>const</code> declarations.
+    </p>
+
+    <!-- Step 1: Input -->
+    <div class="mb-3">
+        <label for="swaggerInput" class="form-label fw-bold">Swagger / OpenAPI JSON</label>
+        <textarea id="swaggerInput"
+                  class="form-control font-monospace"
+                  rows="12"
+                  placeholder="Paste your Swagger or OpenAPI JSON here..."
+                  @bind="swaggerJson"
+                  @bind:event="oninput"></textarea>
+    </div>
+
+    <div class="mb-4">
+        <button class="btn btn-primary me-2" @onclick="Analyze" disabled="@isAnalyzing">
+            @if (isAnalyzing)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            }
+            Analyze
+        </button>
+        <button class="btn btn-outline-secondary" @onclick="ClearAll">Clear</button>
+    </div>
+
+    <!-- Error message -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <strong>Error:</strong> @errorMessage
+        </div>
+    }
+
+    <!-- Step 2: Type selection -->
+    @if (typeDefinitions.Count > 0)
+    {
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Found @typeDefinitions.Count type(s) — select the ones to generate</span>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-1" @onclick="SelectAll">Select All</button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="DeselectAll">Deselect All</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-2">
+                    @foreach (var typeDef in typeDefinitions)
+                    {
+                        <div class="col">
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="type-@typeDef.Name"
+                                       checked="@typeDef.IsSelected"
+                                       @onchange="e => typeDef.IsSelected = (bool)(e.Value ?? false)" />
+                                <label class="form-check-label" for="type-@typeDef.Name">
+                                    @typeDef.Name
+                                </label>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-success" @onclick="Generate" disabled="@(!HasSelectedTypes || isGenerating)">
+                    @if (isGenerating)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    }
+                    Generate
+                </button>
+                <span class="text-muted ms-2 small">@SelectedCount type(s) selected</span>
+            </div>
+        </div>
+    }
+
+    <!-- Step 3: Generated output -->
+    @if (!string.IsNullOrEmpty(generatedOutput))
+    {
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Generated JavaScript</span>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="CopyToClipboard">
+                    @(copied ? "✓ Copied!" : "Copy to Clipboard")
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <pre class="mb-0 p-3 bg-dark text-light rounded-bottom" style="max-height: 500px; overflow-y: auto;"><code>@generatedOutput</code></pre>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string swaggerJson = string.Empty;
+    private List<TypeDefinition> typeDefinitions = [];
+    private string generatedOutput = string.Empty;
+    private string errorMessage = string.Empty;
+    private bool isAnalyzing = false;
+    private bool isGenerating = false;
+    private bool copied = false;
+
+    private bool HasSelectedTypes => typeDefinitions.Any(t => t.IsSelected);
+    private int SelectedCount => typeDefinitions.Count(t => t.IsSelected);
+
+    private async Task Analyze()
+    {
+        isAnalyzing = true;
+        errorMessage = string.Empty;
+        typeDefinitions = [];
+        generatedOutput = string.Empty;
+        StateHasChanged();
+
+        await Task.Yield(); // Allow UI to update
+
+        var result = AnalyzerService.Analyze(swaggerJson);
+        if (result.Error != null)
+        {
+            errorMessage = result.Error;
+        }
+        else
+        {
+            typeDefinitions = result.Types;
+        }
+
+        isAnalyzing = false;
+    }
+
+    private async Task Generate()
+    {
+        isGenerating = true;
+        errorMessage = string.Empty;
+        generatedOutput = string.Empty;
+        StateHasChanged();
+
+        await Task.Yield(); // Allow UI to update
+
+        var selectedNames = typeDefinitions.Where(t => t.IsSelected).Select(t => t.Name);
+        var result = GeneratorService.Generate(swaggerJson, selectedNames);
+
+        if (result.Error != null)
+        {
+            errorMessage = result.Error;
+        }
+        else
+        {
+            generatedOutput = result.Output ?? string.Empty;
+        }
+
+        isGenerating = false;
+    }
+
+    private void SelectAll()
+    {
+        foreach (var t in typeDefinitions) t.IsSelected = true;
+    }
+
+    private void DeselectAll()
+    {
+        foreach (var t in typeDefinitions) t.IsSelected = false;
+    }
+
+    private void ClearAll()
+    {
+        swaggerJson = string.Empty;
+        typeDefinitions = [];
+        generatedOutput = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    private async Task CopyToClipboard()
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", generatedOutput);
+        copied = true;
+        await Task.Delay(2000);
+        copied = false;
+    }
+}
+
