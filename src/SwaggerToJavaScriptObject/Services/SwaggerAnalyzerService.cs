@@ -20,7 +20,7 @@ public class SwaggerAnalyzerService
         }
         else if (!TryNormalizeToOpenApiJson(input, out openApiJson))
         {
-            return new AnalyzeResult { Error = "Error converting RAML to OpenAPI." };
+            return new AnalyzeResult { Error = "Error converting input to OpenAPI JSON. Ensure you provided valid RAML (YAML)." };
         }
 
         try
