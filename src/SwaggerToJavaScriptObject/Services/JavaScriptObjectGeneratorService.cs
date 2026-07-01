@@ -1,14 +1,9 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using SwaggerToJavaScriptObject.Models;
 
 namespace SwaggerToJavaScriptObject.Services;
-
-public class GenerateResult
-{
-    public string? Output { get; set; }
-    public string? Error { get; set; }
-}
 
 public class JavaScriptObjectGeneratorService
 {
