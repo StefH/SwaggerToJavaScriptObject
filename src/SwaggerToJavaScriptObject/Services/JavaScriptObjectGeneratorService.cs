@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace SwaggerToJavaScriptObject.Services;
 
@@ -47,11 +48,16 @@ public class JavaScriptObjectGeneratorService
             }
 
             var sb = new StringBuilder();
+            var allDefinitions = definitions
+                .EnumerateObject()
+                .ToDictionary(d => d.Name, d => d.Value, StringComparer.OrdinalIgnoreCase);
+
             foreach (var typeName in selectedNames)
             {
                 if (definitions.TryGetProperty(typeName, out var schema))
                 {
-                    var schemaJson = JsonSerializer.Serialize(schema, PrettyPrint);
+                    var resolvedSchema = ResolveElement(schema, allDefinitions, []);
+                    var schemaJson = resolvedSchema?.ToJsonString(PrettyPrint) ?? "null";
                     sb.AppendLine($"const {typeName} = {schemaJson};");
                     sb.AppendLine();
                 }
@@ -67,6 +73,98 @@ public class JavaScriptObjectGeneratorService
         {
             return new GenerateResult { Error = $"Error generating output: {ex.Message}" };
         }
+
+        private static JsonNode? ResolveElement(
+            JsonElement element,
+            IReadOnlyDictionary<string, JsonElement> allDefinitions,
+            HashSet<string> resolutionPath)
+        {
+            if (TryResolveReference(element, allDefinitions, out var referencedTypeName, out var referencedSchema))
+            {
+                if (!resolutionPath.Add(referencedTypeName))
+                {
+                    return JsonNode.Parse(element.GetRawText());
+                }
+
+                var resolvedReference = ResolveElement(referencedSchema, allDefinitions, resolutionPath);
+                resolutionPath.Remove(referencedTypeName);
+                return resolvedReference;
+            }
+
+            return element.ValueKind switch
+            {
+                JsonValueKind.Object => ResolveObject(element, allDefinitions, resolutionPath),
+                JsonValueKind.Array => ResolveArray(element, allDefinitions, resolutionPath),
+                _ => JsonSerializer.SerializeToNode(element)
+            };
+        }
+
+        private static JsonObject ResolveObject(
+            JsonElement element,
+            IReadOnlyDictionary<string, JsonElement> allDefinitions,
+            HashSet<string> resolutionPath)
+        {
+            var result = new JsonObject();
+            foreach (var property in element.EnumerateObject())
+            {
+                result[property.Name] = ResolveElement(property.Value, allDefinitions, resolutionPath);
+            }
+
+            return result;
+        }
+
+        private static JsonArray ResolveArray(
+            JsonElement element,
+            IReadOnlyDictionary<string, JsonElement> allDefinitions,
+            HashSet<string> resolutionPath)
+        {
+            var result = new JsonArray();
+            foreach (var arrayItem in element.EnumerateArray())
+            {
+                result.Add(ResolveElement(arrayItem, allDefinitions, resolutionPath));
+            }
+
+            return result;
+        }
+
+        private static bool TryResolveReference(
+            JsonElement element,
+            IReadOnlyDictionary<string, JsonElement> allDefinitions,
+            out string referencedTypeName,
+            out JsonElement referencedSchema)
+        {
+            referencedTypeName = string.Empty;
+            referencedSchema = default;
+
+            if (element.ValueKind != JsonValueKind.Object ||
+                !element.TryGetProperty("$ref", out var refProperty) ||
+                refProperty.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            var reference = refProperty.GetString();
+            if (string.IsNullOrWhiteSpace(reference))
+            {
+                return false;
+            }
+
+            const string swagger2Prefix = "#/definitions/";
+            const string openApi3Prefix = "#/components/schemas/";
+            if (reference.StartsWith(swagger2Prefix, StringComparison.Ordinal))
+            {
+                referencedTypeName = reference[swagger2Prefix.Length..];
+            }
+            else if (reference.StartsWith(openApi3Prefix, StringComparison.Ordinal))
+            {
+                referencedTypeName = reference[openApi3Prefix.Length..];
+            }
+            else
+            {
+                return false;
+            }
+
+            return allDefinitions.TryGetValue(referencedTypeName, out referencedSchema);
+        }
     }
 }
-
