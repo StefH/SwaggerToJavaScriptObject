@@ -80,16 +80,23 @@ public class SwaggerAnalyzerService
             result = new RamlConverter().Convert(tempFilePath);
             return true;
         }
-        catch
+        catch (Exception)
         {
             result = string.Empty;
             return false;
         }
         finally
         {
-            if (File.Exists(tempFilePath))
+            try
             {
-                File.Delete(tempFilePath);
+                if (File.Exists(tempFilePath))
+                {
+                    File.Delete(tempFilePath);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup failures (e.g., file locked by converter)
             }
         }
     }
