@@ -13,11 +13,83 @@ A Blazor WebAssembly app that converts Swagger / OpenAPI definitions to JavaScri
 3. **Select types** — A list of checkboxes lets you select or deselect the types you want to generate. Use *Select All* / *Deselect All* for convenience.
 4. **Generate** — Click *Generate* to bundle and dereference the selected types and produce JavaScript `const` declarations, e.g.:
 
-```js
+``` javascript
 const Pet = {
-  id: 0,
-  name: "",
-  tag: ""
+  "type": "object",
+  "required": [
+    "name",
+    "photoUrls"
+  ],
+  "properties": {
+    "id": {
+      "type": "integer",
+      "format": "int64"
+    },
+    "category": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "xml": {
+        "name": "Category"
+      }
+    },
+    "name": {
+      "type": "string",
+      "example": "doggie"
+    },
+    "photoUrls": {
+      "type": "array",
+      "xml": {
+        "wrapped": true
+      },
+      "items": {
+        "type": "string",
+        "xml": {
+          "name": "photoUrl"
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "xml": {
+        "wrapped": true
+      },
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "xml": {
+          "name": "Tag"
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "description": "pet status in the store",
+      "enum": [
+        "available",
+        "pending",
+        "sold"
+      ]
+    }
+  },
+  "xml": {
+    "name": "Pet"
+  }
 };
 ```
 
