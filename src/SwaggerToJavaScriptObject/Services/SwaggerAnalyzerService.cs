@@ -10,7 +10,7 @@ public class SwaggerAnalyzerService
     {
         if (string.IsNullOrWhiteSpace(input))
         {
-            return new AnalyzeResult { Error = "Please enter a Swagger/OpenAPI or RAML." };
+            return new AnalyzeResult { Error = "Please enter a full Swagger/OpenAPI JSON document or a RAML YAML document." };
         }
 
         string openApiJson;
