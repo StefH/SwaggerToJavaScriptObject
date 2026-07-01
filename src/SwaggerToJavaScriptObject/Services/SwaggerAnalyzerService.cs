@@ -1,20 +1,31 @@
 using System.Text.Json;
+using RamlToOpenApiConverter;
 using SwaggerToJavaScriptObject.Models;
 
 namespace SwaggerToJavaScriptObject.Services;
 
 public class SwaggerAnalyzerService
 {
-    public AnalyzeResult Analyze(string swaggerJson)
+    public AnalyzeResult Analyze(string input)
     {
-        if (string.IsNullOrWhiteSpace(swaggerJson))
+        if (string.IsNullOrWhiteSpace(input))
         {
-            return new AnalyzeResult { Error = "Please enter a Swagger/OpenAPI JSON document." };
+            return new AnalyzeResult { Error = "Please enter a Swagger/OpenAPI or RAML." };
+        }
+
+        string openApiJson;
+        if (input.TrimStart().StartsWith('{'))
+        {
+            openApiJson = input;
+        }
+        else if (!TryNormalizeToOpenApiJson(input, out openApiJson))
+        {
+            return new AnalyzeResult { Error = "Error converting RAML to OpenAPI." };
         }
 
         try
         {
-            using var doc = JsonDocument.Parse(swaggerJson);
+            using var doc = JsonDocument.Parse(openApiJson);
             var root = doc.RootElement;
             var types = new List<TypeDefinition>();
 
@@ -45,7 +56,8 @@ public class SwaggerAnalyzerService
 
             return new AnalyzeResult
             {
-                Types = [.. types.OrderBy(t => t.Name)]
+                Types = [.. types.OrderBy(t => t.Name)],
+                OpenApiJson = openApiJson
             };
         }
         catch (JsonException ex)
@@ -55,6 +67,30 @@ public class SwaggerAnalyzerService
         catch (Exception ex)
         {
             return new AnalyzeResult { Error = $"Error analyzing document: {ex.Message}" };
+        }
+    }
+
+    private static bool TryNormalizeToOpenApiJson(string input, out string result)
+    {
+        var tempFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.raml");
+
+        try
+        {
+            File.WriteAllText(tempFilePath, input);
+            result = new RamlConverter().Convert(tempFilePath);
+            return true;
+        }
+        catch
+        {
+            result = string.Empty;
+            return false;
+        }
+        finally
+        {
+            if (File.Exists(tempFilePath))
+            {
+                File.Delete(tempFilePath);
+            }
         }
     }
 }

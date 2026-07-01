@@ -9,13 +9,8 @@ public class JavaScriptObjectGeneratorService
 {
     private static readonly JsonSerializerOptions PrettyPrint = new() { WriteIndented = true };
 
-    public GenerateResult Generate(string swaggerJson, IEnumerable<string> selectedTypeNames)
+    public GenerateResult Generate(string openApiJson, IEnumerable<string> selectedTypeNames)
     {
-        if (string.IsNullOrWhiteSpace(swaggerJson))
-        {
-            return new GenerateResult { Error = "Swagger JSON is empty." };
-        }
-
         var selectedNames = selectedTypeNames.ToList();
         if (selectedNames.Count == 0)
         {
@@ -24,7 +19,7 @@ public class JavaScriptObjectGeneratorService
 
         try
         {
-            using var doc = JsonDocument.Parse(swaggerJson);
+            using var doc = JsonDocument.Parse(openApiJson);
             var root = doc.RootElement;
 
             JsonElement definitions;
