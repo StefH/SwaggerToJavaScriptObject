@@ -1,18 +1,7 @@
 using System.Text.Json;
+using SwaggerToJavaScriptObject.Models;
 
 namespace SwaggerToJavaScriptObject.Services;
-
-public class TypeDefinition
-{
-    public string Name { get; set; } = string.Empty;
-    public bool IsSelected { get; set; } = true;
-}
-
-public class AnalyzeResult
-{
-    public List<TypeDefinition> Types { get; set; } = [];
-    public string? Error { get; set; }
-}
 
 public class SwaggerAnalyzerService
 {
