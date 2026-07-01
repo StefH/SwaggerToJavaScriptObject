@@ -8,17 +8,17 @@
 <div class="container-fluid px-0">
     <h1 class="mb-3">Swagger to JavaScript Object</h1>
     <p class="text-muted mb-4">
-        Paste your Swagger / OpenAPI JSON below, click <strong>Analyze</strong> to extract type definitions,
+        Paste your Swagger / OpenAPI (JSON) or RAML (YAML) below, click <strong>Analyze</strong> to extract type definitions,
         select the types you need, then click <strong>Generate</strong> to produce JavaScript <code>const</code> declarations.
     </p>
 
     <!-- Step 1: Input -->
     <div class="mb-3">
-        <label for="swaggerInput" class="form-label fw-bold">Swagger / OpenAPI JSON</label>
+        <label for="swaggerInput" class="form-label fw-bold">Swagger / OpenAPI JSON or RAML YAML</label>
         <textarea id="swaggerInput"
                   class="form-control font-monospace"
                   rows="12"
-                  placeholder="Paste your Swagger or OpenAPI JSON here..."
+                  placeholder="Paste your Swagger/OpenAPI JSON or RAML YAML here..."
                   @bind="swaggerJson"
                   @bind:event="oninput"></textarea>
     </div>
@@ -104,7 +104,8 @@
 
 @code {
     private string swaggerJson = string.Empty;
-    private List<TypeDefinition> typeDefinitions = [];
+    private AnalyzeResult analyzeResult = new();
+    private List<TypeDefinition> typeDefinitions => analyzeResult.Types;
     private string generatedOutput = string.Empty;
     private string errorMessage = string.Empty;
     private bool isAnalyzing = false;
@@ -118,21 +119,17 @@
     {
         isAnalyzing = true;
         errorMessage = string.Empty;
-        typeDefinitions = [];
+        analyzeResult = new();
         generatedOutput = string.Empty;
         StateHasChanged();
 
         await Task.Yield(); // Allow UI to update
 
-        var result = AnalyzerService.Analyze(swaggerJson);
-        if (result.Error != null)
+        analyzeResult = AnalyzerService.Analyze(swaggerJson);
+        if (analyzeResult.Error != null)
         {
-            errorMessage = result.Error;
-        }
-        else
-        {
-            typeDefinitions = result.Types;
-        }
+            errorMessage = analyzeResult.Error;
+        }        
 
         isAnalyzing = false;
     }
@@ -147,7 +144,7 @@
         await Task.Yield(); // Allow UI to update
 
         var selectedNames = typeDefinitions.Where(t => t.IsSelected).Select(t => t.Name);
-        var result = GeneratorService.Generate(swaggerJson, selectedNames);
+        var result = GeneratorService.Generate(analyzeResult.OpenApiJson, selectedNames);
 
         if (result.Error != null)
         {
@@ -174,7 +171,7 @@
     private void ClearAll()
     {
         swaggerJson = string.Empty;
-        typeDefinitions = [];
+        analyzeResult = new();
         generatedOutput = string.Empty;
         errorMessage = string.Empty;
     }
