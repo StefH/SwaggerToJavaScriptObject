@@ -14,7 +14,7 @@ A Blazor WebAssembly app that converts Swagger / OpenAPI definitions to JavaScri
 4. **Generate** — Click *Generate* to bundle and dereference the selected types and produce JavaScript `const` declarations, e.g.:
 
 ``` javascript
-const Pet = {
+const petSchema = {
   "type": "object",
   "required": [
     "name",

@@ -58,7 +58,8 @@ public class JavaScriptObjectGeneratorService
                 {
                     var resolvedSchema = ResolveElement(schema, allDefinitions, []);
                     var schemaJson = resolvedSchema?.ToJsonString(PrettyPrint) ?? "null";
-                    sb.AppendLine($"const {typeName} = {schemaJson};");
+                    var variableName = ToLowerFirstChar(typeName);
+                    sb.AppendLine($"const {variableName}Schema = {schemaJson};");
                     sb.AppendLine();
                 }
             }
@@ -166,5 +167,15 @@ public class JavaScriptObjectGeneratorService
         }
 
         return allDefinitions.TryGetValue(referencedTypeName, out referencedSchema);
+    }
+
+    private static string ToLowerFirstChar(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        return char.ToLowerInvariant(value[0]) + value[1..];
     }
 }
