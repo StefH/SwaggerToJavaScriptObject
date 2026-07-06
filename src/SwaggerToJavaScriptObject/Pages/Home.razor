@@ -46,15 +46,27 @@
     @if (typeDefinitions.Count > 0)
     {
         <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header">
                 <span class="fw-bold">Found @typeDefinitions.Count type(s) — select the ones to generate</span>
-                <div>
-                    <button class="btn btn-sm btn-outline-secondary me-1" @onclick="SelectAll">Select All</button>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="DeselectAll">Deselect All</button>
-                </div>
             </div>
             <div class="card-body">
                 <div class="row row-cols-1 row-cols-sm-2 row-cols-md-1 row-cols-lg-1 g-2">
+                    <div class="col">
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="select-all-types"
+                                   checked="@(typeDefinitions.All(t => t.IsSelected))"
+                                   indeterminate="@(typeDefinitions.Any(t => t.IsSelected) && typeDefinitions.Any(t => !t.IsSelected))"
+                                   @onchange="e => ToggleAll((bool)(e.Value ?? false))" />
+                            <label class="form-check-label" for="select-all-types">
+                                <strong>Select / Deselect All</strong>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div style="height: 1rem;"></div>
+                    </div>
                     @foreach (var typeDef in typeDefinitions)
                     {
                         <div class="col">
@@ -158,14 +170,9 @@
         isGenerating = false;
     }
 
-    private void SelectAll()
+    private void ToggleAll(bool selectAll)
     {
-        foreach (var t in typeDefinitions) t.IsSelected = true;
-    }
-
-    private void DeselectAll()
-    {
-        foreach (var t in typeDefinitions) t.IsSelected = false;
+        foreach (var t in typeDefinitions) t.IsSelected = selectAll;
     }
 
     private void ClearAll()
