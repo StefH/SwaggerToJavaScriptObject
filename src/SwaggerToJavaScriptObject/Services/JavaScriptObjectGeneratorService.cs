@@ -97,9 +97,30 @@ public class JavaScriptObjectGeneratorService
         HashSet<string> resolutionPath)
     {
         var result = new JsonObject();
+        string? dateTimeOnlyFormatFound = null;
+
         foreach (var property in element.EnumerateObject())
         {
-            result[property.Name] = ResolveElement(property.Value, allDefinitions, resolutionPath);
+            var resolvedValue = ResolveElement(property.Value, allDefinitions, resolutionPath);
+
+            // Check if this is a date-time-only format property
+            if (property.Name == "format" && 
+                resolvedValue is JsonValue jsonValue &&
+                jsonValue.TryGetValue(out string? formatValue) &&
+                formatValue == "date-time-only")
+            {
+                dateTimeOnlyFormatFound = formatValue;
+                // Skip adding the format property for now; we'll replace it with pattern
+                continue;
+            }
+
+            result[property.Name] = resolvedValue;
+        }
+
+        // If we found date-time-only format, add pattern instead
+        if (dateTimeOnlyFormatFound != null)
+        {
+            result["pattern"] = @"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z?$";
         }
 
         return result;
