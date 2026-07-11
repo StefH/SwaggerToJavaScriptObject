@@ -91,6 +91,18 @@ public class JavaScriptObjectGeneratorService
         };
     }
 
+    // OpenAPI-specific format values that are not valid JSON Schema formats and must be dropped.
+    private static readonly HashSet<string> OpenApiOnlyFormats =
+    [
+        "int32",
+        "int64",
+        "float",
+        "double",
+        "byte",
+        "binary",
+        "password"
+    ];
+
     private static JsonObject ResolveObject(
         JsonElement element,
         IReadOnlyDictionary<string, JsonElement> allDefinitions,
@@ -103,15 +115,22 @@ public class JavaScriptObjectGeneratorService
         {
             var resolvedValue = ResolveElement(property.Value, allDefinitions, resolutionPath);
 
-            // Check if this is a date-time-only format property
-            if (property.Name == "format" && 
+            if (property.Name == "format" &&
                 resolvedValue is JsonValue jsonValue &&
-                jsonValue.TryGetValue(out string? formatValue) &&
-                formatValue == "date-time-only")
+                jsonValue.TryGetValue(out string? formatValue))
             {
-                dateTimeOnlyFormatFound = formatValue;
-                // Skip adding the format property for now; we'll replace it with pattern
-                continue;
+                if (formatValue == "date-time-only")
+                {
+                    // Replace with a pattern instead
+                    dateTimeOnlyFormatFound = formatValue;
+                    continue;
+                }
+
+                if (OpenApiOnlyFormats.Contains(formatValue))
+                {
+                    // Strip OpenAPI-specific formats — not valid in JSON Schema
+                    continue;
+                }
             }
 
             result[property.Name] = resolvedValue;
